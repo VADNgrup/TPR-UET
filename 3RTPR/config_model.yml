@@ -1,4 +1,4 @@
-name : Camel
+name : AAAIDA
 iocfg:
   datadir : /data2/cmdir/home/ioit101/Dang_DHCN/projects/person-search/datasets
   logdir   : /data2/cmdir/home/ioit101/Dang_DHCN/projects/person-search/logs
@@ -20,12 +20,14 @@ image_encoder:
     enable: False
     selection_ratio: 0.5
     crossloss: False
+    dim: 512 #256
+  
 
 resume: False
 resume_ckpt_file : /home/k64t/person-search/DAProject/saves/ViT-B-16.pt
 training: True
 trainer:
-  num_epoch: 60
+  num_epoch: 60 #-->80
   scheduler:
     milestones: [20, 50]
     gamma:  0.1
@@ -54,11 +56,12 @@ dataloader:
   test_batch_size: 512 #512
   text_length: 77
   use_masked_text: False
+  strong_aug: False
   dataset_name: "CUHK-PEDES"
   sampler: random #choose from [identity, random]
   # sampler: identity
   val_dataset: test
-  num_instance: 4
+  num_instance: 8
 
   transform:
     mean: [0.48145466, 0.4578275, 0.40821073]
@@ -67,27 +70,47 @@ dataloader:
 
 ccd:
   enable : False
+  warmup_epochs: 1
+  dynamic: False
+  remakeds: False
+  mode   : ''
 
-  
+apl: #attribute prompt learning
+  enable : True 
+  weight_loss: 0.8
+  use_mam: True
+  use_itf: True
+
 losses:
-  loss_names : ['cmpm', 'tal', 'mlm']
-  mlm_loss_weight: 0
-  tal_loss_weight: 1.0
+  dynamic: False
+  dynamic_type: -1
+  dynamic_muy : mean
+  loss_names : ['sdm']
+  mam_loss_weight: 0
+  trl_loss_weight: 0
   sdm_loss_weight: 1.0
-
-  tal:
-    tau   : 0.015
-    margin: 0.1
     
-  local_branch:
-    sdm_loss_weight: 0
-    tal_loss_weight: 0
+  sdm:
+    margin: 0
+    hardmode: False
+  trl:
+    tau   : 0.02
+    margin: 0.2
+    topk: 1
+    hardmode: False
+    type: soft
 
   mmm:
     masking_mode: "" #"":None, linear, cosine
     factor4maskscheduler: 1
+    mam:
+      mask_prob: 0
+    mgm:
+      mask_prob: 0
     mlm:
       mask_prob: 0.20
+    mim:
+      enable: False
     cross_modal:
       type: "i" #s: shared encoder | i: independent encoders
       cmt_depth: 4 #cross modal transformer self attn layers
