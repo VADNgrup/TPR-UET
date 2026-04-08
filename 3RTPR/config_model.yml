@@ -1,0 +1,98 @@
+name : Camel
+iocfg:
+  datadir : /data2/cmdir/home/ioit101/Dang_DHCN/projects/person-search/datasets
+  logdir   : /data2/cmdir/home/ioit101/Dang_DHCN/projects/person-search/logs
+  savedir   : /data2/cmdir/home/ioit101/Dang_DHCN/projects/person-search/saves
+
+
+text_encoder:
+  vocab_size: 49408 #adjust
+  freeze    : False
+
+image_encoder:
+  name: "ViT-B/16" #"ViT-L/14" #
+  vision_width: 1024
+  image_res: 384
+  img_size: [384, 128]
+  stride_size: 16
+  temperature: 0.02
+  local_branch: 
+    enable: False
+    selection_ratio: 0.5
+    crossloss: False
+
+resume: False
+resume_ckpt_file : /home/k64t/person-search/DAProject/saves/ViT-B-16.pt
+training: True
+trainer:
+  num_epoch: 60
+  scheduler:
+    milestones: [20, 50]
+    gamma:  0.1
+    warmup_factor: 0.1
+    warmup_epochs: 5
+    warmup_method: linear
+    lrscheduler: cosine
+    target_lr: 0
+    power: 0.9
+  optimizer:
+    opt: Adam
+    lr: 1e-5
+    bias_lr_factor: 2.
+    momentum: 0.9
+    weight_decay: 4e-5
+    weight_decay_bias: 0.0
+    alpha: 0.9 #AdamW
+    beta : 0.999  #AdamW
+    lr_mult: 2
+  num_workers: 4
+  log_period: 200 #step
+  eval_period: 1 #epoch
+
+dataloader:
+  batch_size: 64 #128
+  test_batch_size: 512 #512
+  text_length: 77
+  use_masked_text: False
+  dataset_name: "CUHK-PEDES"
+  sampler: random #choose from [identity, random]
+  # sampler: identity
+  val_dataset: test
+  num_instance: 4
+
+  transform:
+    mean: [0.48145466, 0.4578275, 0.40821073]
+    std : [0.26862954, 0.26130258, 0.27577711]
+
+
+ccd:
+  enable : False
+
+  
+losses:
+  loss_names : ['cmpm', 'tal', 'mlm']
+  mlm_loss_weight: 0
+  tal_loss_weight: 1.0
+  sdm_loss_weight: 1.0
+
+  tal:
+    tau   : 0.015
+    margin: 0.1
+    
+  local_branch:
+    sdm_loss_weight: 0
+    tal_loss_weight: 0
+
+  mmm:
+    masking_mode: "" #"":None, linear, cosine
+    factor4maskscheduler: 1
+    mlm:
+      mask_prob: 0.20
+    cross_modal:
+      type: "i" #s: shared encoder | i: independent encoders
+      cmt_depth: 4 #cross modal transformer self attn layers
+      lr_factor: 5.0 # lr factor for random init self implement module
+
+distributed : False
+distribution_cfg:
+  local_rank: 0
