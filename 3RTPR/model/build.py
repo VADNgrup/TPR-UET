@@ -9,40 +9,7 @@ from collections import OrderedDict
 import torch.nn.functional as F
 import math
 
-    
-class _ResidualAttentionBlock(nn.Module):
-    def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None):
-        super().__init__()
 
-        self.attn = nn.MultiheadAttention(d_model, n_head)
-        self.ln_1 = LayerNorm(d_model)
-        self.mlp = nn.Sequential(OrderedDict([
-            ("c_fc", nn.Linear(d_model, d_model * 4)),
-            ("gelu", QuickGELU()),
-            ("c_proj", nn.Linear(d_model * 4, d_model))
-        ]))
-        self.ln_2 = LayerNorm(d_model)
-        self.attn_mask = attn_mask
-
-    def attention(self, x: torch.Tensor):
-        self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
-        return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
-
-    def forward(self, x: torch.Tensor):
-        x = x + self.attention(self.ln_1(x))
-        x = x + self.mlp(self.ln_2(x))
-        return x
-
-
-class Transformer4crossmodule(nn.Module):
-    def __init__(self, width: int, layers: int, heads: int, attn_mask: torch.Tensor = None):
-        super().__init__()
-        self.width = width
-        self.layers = layers
-        self.resblocks = nn.Sequential(*[_ResidualAttentionBlock(width, heads, attn_mask) for _ in range(layers)])
-
-    def forward(self, x: torch.Tensor):
-        return self.resblocks(x)
     
 class DATPS(nn.Module):
     def __init__(self, args, num_classes=11003, name="a"):
@@ -70,36 +37,6 @@ class DATPS(nn.Module):
 
         self.mask_token = nn.Parameter(torch.zeros(1, 3, 1, 1), requires_grad=True)
         self.vision_patch_size = base_cfg['vision_patch_size']
-
-        if len({"mam","mim", 'ntlm', 'apl'} & set(args.losses.loss_names)) > 0:
-            self.ln_pre_t = LayerNorm(self.embed_dim)
-            self.ln_pre_i = LayerNorm(self.embed_dim)
-            self.ln_post = LayerNorm(self.embed_dim)
-            self.cross_attn = nn.MultiheadAttention(self.embed_dim,self.embed_dim // 64, batch_first=True)
-            self.cross_modal_transformer = Transformer4crossmodule(width=self.embed_dim, layers=args.losses.mmm.cross_modal.cmt_depth, heads=self.embed_dim // 64)
-            scale = self.cross_modal_transformer.width**-0.5
-            proj_std = scale * ((2 * self.cross_modal_transformer.layers)**-0.5)
-            attn_std = scale
-            fc_std = (2 * self.cross_modal_transformer.width)**-0.5
-            for block in self.cross_modal_transformer.resblocks:
-                nn.init.normal_(block.attn.in_proj_weight, std=attn_std)
-                nn.init.normal_(block.attn.out_proj.weight, std=proj_std)
-                nn.init.normal_(block.mlp.c_fc.weight, std=fc_std)
-                nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
-            # init cross attn
-            nn.init.normal_(self.cross_attn.in_proj_weight, std=attn_std)
-            nn.init.normal_(self.cross_attn.out_proj.weight, std=proj_std)
-
-
-            if 'mam' in args.losses.loss_names :
-                self.mam_head = nn.Sequential(
-                    OrderedDict([
-                                # ('dense', nn.Linear(self.embed_dim, self.embed_dim)),
-                                # ('gelu', QuickGELU()),
-                                ('ln', LayerNorm(self.embed_dim)),
-                                ('fc', nn.Linear(self.embed_dim, args.text_encoder.vocab_size))]))
-                # nn.init.normal_(self.mam_head.dense.weight, std=fc_std)
-                nn.init.normal_(self.mam_head.fc.weight, std=proj_std)
 
     #######################################    METHOD SECTION    ####################################################
 
@@ -156,19 +93,11 @@ class DATPS(nn.Module):
         text_fused_feats,  lt_feats = self.ttselection(text_feats, text_rfeatures, caption_ids, text_attscore)
            
         logit_scale = self.logit_scale
-        if "mam" in self.args.losses.loss_names:
-            mam_text = batch[f'masked_att_ids_{self.name}']
-            mam_feats, _ = self.base_model.encode_text(mam_text)
-            mam_fuse_feats = self.cross_former(mam_feats, image_feats, image_feats)  #BxPatchsxD
-            mam_logits = self.mam_head(mam_fuse_feats)   #BxPatchsxD
-        else: mam_logits = None
 
         return {
             "logit_scale": logit_scale,
             "image_norms_fused_feats" : image_fused_feats / image_fused_feats.norm(dim=-1, keepdim=True), #if self.use_token_selection else None,
             "text_norms_fused_feats" : text_fused_feats / text_fused_feats.norm(dim=-1, keepdim=True),   #if self.use_token_selection else None,
-            "mam_logits": mam_logits,
-            "":None
         }
 
 

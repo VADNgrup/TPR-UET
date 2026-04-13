@@ -75,46 +75,18 @@ ccd:
   remakeds: False
   mode   : ''
 
-apl: #attribute prompt learning
-  enable : True 
-  weight_loss: 0.8
-  use_mam: True
-  use_itf: True
 
 losses:
   dynamic: False
   dynamic_type: -1
   dynamic_muy : mean
   loss_names : ['sdm']
-  mam_loss_weight: 0
-  trl_loss_weight: 0
   sdm_loss_weight: 1.0
     
   sdm:
     margin: 0
     hardmode: False
-  trl:
-    tau   : 0.02
-    margin: 0.2
-    topk: 1
-    hardmode: False
-    type: soft
 
-  mmm:
-    masking_mode: "" #"":None, linear, cosine
-    factor4maskscheduler: 1
-    mam:
-      mask_prob: 0
-    mgm:
-      mask_prob: 0
-    mlm:
-      mask_prob: 0.20
-    mim:
-      enable: False
-    cross_modal:
-      type: "i" #s: shared encoder | i: independent encoders
-      cmt_depth: 4 #cross modal transformer self attn layers
-      lr_factor: 5.0 # lr factor for random init self implement module
 
 distributed : False
 distribution_cfg:

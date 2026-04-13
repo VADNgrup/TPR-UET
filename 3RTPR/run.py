@@ -124,25 +124,7 @@ if __name__ == '__main__':
     parser.add_argument("--noisy_file", type=str, default="")
 
     parser.add_argument("--dev", action="store_true") 
-    #TRL
-    parser.add_argument("--l-trl-type", type=str, default="soft", choices=['soft', 'hard'])
-    parser.add_argument("--l-trl-topk", type=float, default=None)
-    parser.add_argument("--l-trl-M", type=float, default=None)
-    parser.add_argument("--l-trl-tau", type=float, default=None) 
-    #MLM
-    parser.add_argument("--l-mlm-prob", type=float, default=None)
-    #MAM
-    parser.add_argument("--l-mam-prob", type=float, default=None)
-    #MGM
-    parser.add_argument("--l-mgm-prob", type=float, default=0)
-    
 
-    #MMM
-    parser.add_argument("--mmm-crossmodel-depth", type=int, default=4, choices=[2, 4, 8, 12, 16, 20])
-
-    parser.add_argument("--lossweight-sdm", type=float, default=0)
-    parser.add_argument("--lossweight-mam", type=float, default=0)
-    parser.add_argument("--lossweight-trl", type=float, default=0)
    
     
     args = parser.parse_args()
@@ -187,29 +169,9 @@ if __name__ == '__main__':
         cfg.losses.dynamic_muy = args.ldynamic_m
     
 
-    if not args.l_mlm_prob is None:
-        print("[!!!]change MLM Prob to ", args.l_mlm_prob)
-        cfg.losses.mmm.mlm.mask_prob = args.l_mlm_prob
-    if 'mam' in args.l_names:
-        print("[!!!] USE MAM with prob =", args.l_mam_prob)
-        cfg.losses.mmm.mam.mask_prob = args.l_mam_prob
-    if args.l_mgm_prob > 0:
-        print("[!!!] USE MGM with prob =", args.l_mgm_prob)
-        cfg.losses.mmm.mgm.mask_prob = args.l_mgm_prob
-    cfg.losses.mmm.cross_modal.cmt_depth  = args.mmm_crossmodel_depth
-
-    if 'trl' in args.l_names:
-        cfg.losses.trl.type = args.l_trl_type;  print("[!!!] USE TRL with type=",  args.l_trl_type)
-        if not args.l_trl_topk is None:
-            print("\t\t===> TRL.topk is set to ", args.l_trl_topk);cfg.losses.trl.topk = args.l_trl_topk
-        if not args.l_trl_M is None:
-            print("\t\t===> TRL.margin is set to ", args.l_trl_M);cfg.losses.trl.margin = args.l_trl_M
-        if not args.l_trl_tau is None:
-            print("\t\t===> TRL.tau is set to ", args.l_trl_tau);cfg.losses.trl.tau = args.l_trl_tau
 
 
     cfg.losses.sdm_loss_weight = args.lossweight_sdm
-    cfg.losses.trl_loss_weight = args.lossweight_trl
     print("=======LOSS WEIGHT=======")
     for k, v in cfg.losses.items():
         if "loss" in k or "local_branch" in k:

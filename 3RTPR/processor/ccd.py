@@ -37,7 +37,6 @@ def _compute_per_loss_4ccd(args, models:List[DATPS], batch, **kwargs ):
         Gsims                         += gscoret2i.diagonal().detach().cpu()
         Gloss = 0
         if 'sdm' in cur_task and args.losses.sdm_loss_weight > 0: Gloss += objectives.compute_sdm(gscoret2i, batch['pids'], logit_scale) * args.losses.sdm_loss_weight
-        elif 'trl' in cur_task and args.losses.trl_loss_weight > 0: Gloss += objectives.compute_TRL(gscoret2i, batch['pids'], margin=args.losses.trl.margin, tau=args.losses.trl.tau) * args.losses.trl_loss_weight
 
         loss_values[midx] += Gloss      
     return [loss.detach().cpu() for loss in loss_values], (Gsims / len(models)).detach().cpu()

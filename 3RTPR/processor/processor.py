@@ -57,8 +57,6 @@ def do_train(start_epoch, args, models:List[DATPS], train_loader, evaluator, opt
     meters = {
         "loss": AverageMeter(),
         "sdm_loss": AverageMeter(),
-        'trl_loss': AverageMeter(),
-        "mam_loss": AverageMeter(),
     }
 
 
@@ -132,21 +130,7 @@ def do_train(start_epoch, args, models:List[DATPS], train_loader, evaluator, opt
                     _loss_value = objectives.compute_sdm(gscoret2i, batch['pids'], logit_scale) *  batch['label_hat'] * total_loss_weight #==> only take the sample with 1 label
                     _loss_value = _loss_value.sum() / (batch['label_hat'] .sum() + 1e-8)  * args.losses.sdm_loss_weight
                     rets[model.name].update({'sdm_loss': _loss_value })
-                if 'trl' in current_task: 
-                    _trl_margin = args.losses.trl.margin
-                    _loss_value = objectives.compute_TRL(gscoret2i, batch['pids'], margin=args.losses.trl.margin, tau=_trl_margin) *  batch['label_hat'] * total_loss_weight 
-                    _loss_value = _loss_value.sum() * args.losses.trl_loss_weight
-                    rets[model.name].update({'trl_loss':_loss_value  })
-                if 'mam' in current_task:
-                    mam_logits      = model_output['mam_logits']
-                    mam_labels      = batch[f'masked_att_label_{model.name}']
-                    for i in range(mam_labels.shape[0]): mam_labels[i] = (batch['label_hat'][i].float() * mam_labels[i].float()) 
-                    mam_labels      = mam_labels.reshape(-1)
-                    mam_logits = mam_logits.reshape(-1, args.text_encoder.vocab_size)
-                    mam_loss   =  objectives.compute_mlm(mam_logits, mam_labels, reducation='none') * total_loss_weight
-                    mam_loss   = mam_loss.sum() / ((mam_labels > 0).float().sum() + 1e-6)  *  args.losses.mam_loss_weight
-                    rets[model.name].update({'mam_loss': mam_loss})
-                
+
 
             #########################################
                 total_loss = sum([v for k, v in rets[model.name].items() if "loss" in k]) 
@@ -165,8 +149,7 @@ def do_train(start_epoch, args, models:List[DATPS], train_loader, evaluator, opt
             batch_size = batch['images_a'].shape[0]
             meters['loss'].update(total_loss.item(), batch_size)
             meters['sdm_loss'].update(ret.get('sdm_loss', 0), batch_size)
-            meters['trl_loss'].update(ret.get('trl_loss', 0), batch_size)
-            meters['mam_loss'].update(ret.get('mam_loss', 0), batch_size)
+
 
             if (n_iter + 1) % log_period == 0:
                 info_str = f"Epoch[{epoch}] Iteration[{n_iter + 1}/{len(train_loader)}]"
@@ -179,12 +162,7 @@ def do_train(start_epoch, args, models:List[DATPS], train_loader, evaluator, opt
 
         for scheduler in schedulers: scheduler.step()
 
-        #use tensorboard to log
-        # tb_writer.add_scalar('lr', scheduler.get_lr()[0], epoch)
-        # tb_writer.add_scalar('temperature', ret['temperature'], epoch)
-        # for k, v in meters.items():
-        #     if v.avg > 0:
-        #         tb_writer.add_scalar(k, v.avg, epoch)
+
 
         if get_rank() == 0:
             end_time = time.time()

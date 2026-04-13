@@ -24,53 +24,56 @@
 
 
 
-#base model - top k
-for k in 0 0.1 0.2 0.3 0.4 0.5; do
-python run.py  --cfg config_model.yml \
-  --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio $k --fusedim 4096 
+# #base model - top k
+# for k in 0 0.1 0.2 0.3 0.4 0.5; do
+# python run.py  --cfg config_model.yml \
+#   --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio $k --fusedim 4096 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio $k --fusedim 4096 
+# python run.py  --cfg config_model.yml \
+#   --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio $k --fusedim 4096 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio $k --fusedim 4096
-done
+# python run.py  --cfg config_model.yml \
+#   --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio $k --fusedim 4096
+# done
 
 
-#base model - top z
-for k in 512 1024 2048 8192; do
-python run.py  --cfg config_model.yml \
-  --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio 0.3 --fusedim $k 
+# #base model - top z
+# for k in 512 1024 2048 8192; do
+# python run.py  --cfg config_model.yml \
+#   --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio 0.4 --fusedim $k 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio 0.3 --fusedim $k 
+# python run.py  --cfg config_model.yml \
+#   --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio 0.4 --fusedim $k 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --lossweight-sdm 1 --sratio 0.3 --fusedim $k
-done
+# python run.py  --cfg config_model.yml \
+#   --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+#   --lossweight-sdm 1 --sratio 0.4 --fusedim $k
+# done
 
 
 # #base + ALR
-python run.py  --cfg config_model.yml \
-  --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --ccd --ldynamic  --ldynamic-t -1 --ldynamic-m min --lossweight-sdm 1 --sratio 0.2 --fusedim 2048 
+for seed in 123  33035  1910 888; do
+  python run.py  --cfg config_model.yml --seed $seed \
+    --d-names CUHK-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+    --ccd --ldynamic  --ldynamic-t 6 --ldynamic-m min --lossweight-sdm 1 --sratio 0.4 --fusedim 5120 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --ccd --ldynamic  --ldynamic-t -1 --ldynamic-m min --lossweight-sdm 1 --sratio 0.2 --fusedim 2048 
+  python run.py  --cfg config_model.yml --seed $seed \
+    --d-names ICFG-PEDES -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+    --ccd --ldynamic  --ldynamic-t 6 --ldynamic-m min --lossweight-sdm 1 --sratio 0.4 --fusedim 5120 
 
 
-python run.py  --cfg config_model.yml \
-  --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpt 0.2 \
-  --ccd --ldynamic  --ldynamic-t -1 --ldynamic-m min --lossweight-sdm 1 --sratio 0.2 --fusedim 2048 
+  python run.py  --cfg config_model.yml --seed $seed \
+    --d-names RSTPReid -n hihi  --l-name sdm  --bs 128 --saug-text --erpi 0.5 --erpt 0.2 \
+    --ccd --ldynamic  --ldynamic-t 6 --ldynamic-m min --lossweight-sdm 1 --sratio 0.4 --fusedim 5120 
+
+done
