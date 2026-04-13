@@ -6,7 +6,6 @@ from .lr_scheduler import LRSchedulerWithWarmup
 def build_optimizer(args, model):
     params = []
 
-    print(f'Using {args.losses.mmm.cross_modal.lr_factor} times learning rate for random init module ')
     
     for key, value in model.named_parameters():
         if not value.requires_grad:
@@ -17,14 +16,9 @@ def build_optimizer(args, model):
         else:
             lr = args.trainer.optimizer.lr
             weight_decay = args.trainer.optimizer.weight_decay
-            if "cross" in key:
-                # use large learning rate for random initialized cross modal module
-                lr =  args.trainer.optimizer.lr * args.losses.mmm.cross_modal.lr_factor # default 5.0
             if "bias" in key:
                 lr = args.trainer.optimizer.lr * args.trainer.optimizer.bias_lr_factor
                 weight_decay = args.trainer.optimizer.weight_decay_bias
-            if "classifier" in key or "mlm_head" in key or "mim_head" in key:
-                lr = args.trainer.optimizer.lr * args.losses.mmm.cross_modal.lr_factor
             params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
     optimizer = None
     if args.trainer.optimizer.opt == "SGD":
