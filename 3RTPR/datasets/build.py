@@ -88,7 +88,6 @@ def build_dataloader(args, tranforms=None):
                                     datasetname=dataset.name,
                                     text_length=args.dataloader.text_length,
                                     maskT_ratio=args.erpt, 
-                                    maskA_ratio=args.losses.mmm.mam.mask_prob,
                                     noisy_rate      =args.noisy_rate,
                                     noisy_file      =args.noisy_file)
 

@@ -94,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument("--test", action="store_true")
     #add params to optimize
     parser.add_argument("--l-names", nargs='+', default=[], type=str)
+    parser.add_argument("--lossweight-sdm", type=float, default=1.0)
     parser.add_argument("--sampler", default="random", type=str, choices=['random', 'identity'])
     parser.add_argument("--d-names", default="CUHK-PEDES", type=str, choices=["CUHK-PEDES-M",'CUHK-PEDES', 'ICFG-PEDES', 'RSTPReid'])
     #Dataloader

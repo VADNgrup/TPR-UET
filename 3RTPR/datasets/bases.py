@@ -155,8 +155,6 @@ class ImageTextMLMDataset(Dataset):
                  text_length: int = 77,
                  truncate: bool = True,
                  maskT_ratio:float = 0.2,
-                 maskA_ratio:float = 0.8,
-		         maskG_ratio:float = 0,
                  vision_patch_size:int=16, 
                  noisy_rate=0.0, noisy_file="",
                  datasetname="CUHK-PEDES",**kwargs):
@@ -167,8 +165,6 @@ class ImageTextMLMDataset(Dataset):
         self.text_length         = text_length
         self.truncate            = truncate
         self.maskT_ratio         = maskT_ratio
-        self.maskA_ratio         = maskA_ratio
-        self.maskG_ratio	     = maskG_ratio
         self.noisy_rate          = noisy_rate
         self.noisy_file          = noisy_file
         self.tokenizer           = SimpleTokenizer()
@@ -199,15 +195,9 @@ class ImageTextMLMDataset(Dataset):
         if self.transform is not None:
             img_a = self.transform(img_a)
             img_b = self.transform(img_b)
-            if self.maskG_ratio > 0:
-                img_a, _, _ = self._local_grayscale_replacment(img_a, self.maskG_ratio)
-                img_b, _, _ = self._local_grayscale_replacment(img_b, self.maskG_ratio)
         caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
         masked_caption_tokens_a = self.txt_data_aug(caption_tokens.clone().cpu().numpy()) 
         masked_caption_tokens_b = self.txt_data_aug(caption_tokens.clone().cpu().numpy()) 
-        masked_attribute_tokens_a, mam_a_label = self.masked_attribute_and_labels(caption_tokens.clone().cpu().numpy()) 
-        masked_attribute_tokens_b, mam_b_label= self.masked_attribute_and_labels(caption_tokens.clone().cpu().numpy()) 
-
         ret = {
             'pids': pid,
             'image_ids': image_id,
@@ -218,10 +208,6 @@ class ImageTextMLMDataset(Dataset):
             'masked_caption_ids_a':  masked_caption_tokens_a,
             'masked_caption_ids_b':  masked_caption_tokens_b,
 
-            'masked_att_ids_a': masked_attribute_tokens_a,
-            'masked_att_ids_b': masked_attribute_tokens_b,
-            'masked_att_label_a': mam_a_label,
-            'masked_att_label_b': mam_b_label,
 
             'index':index,
             "none":True
@@ -256,93 +242,3 @@ class ImageTextMLMDataset(Dataset):
         new_tokens[0:len(aug_tokens)] = np.array(aug_tokens)
         return torch.tensor(new_tokens)
 
-    def _local_grayscale_replacment(self, x, mask_ratio, block_size=16, hard_patch_mask=None, vision_patch_size=16):
-        channel, height, width = x.shape
-        mask_size_w = width // block_size            #number patch/row
-        mask_size_h = height // block_size            #number patch/row
-        bw_ratio_h = height // mask_size_h                  #??
-        bw_ratio_w = width // mask_size_w                  #??
-        len_keep = int(mask_size_w * mask_size_h * (1 - mask_ratio)) #the number of patch will not be masked
-
-        if hard_patch_mask is None:
-            noise = torch.rand(mask_size_w * mask_size_h, device=x.device)  # noise in [0, 1]
-            ids_shuffle = torch.argsort(noise)
-            patch_mask = torch.ones([mask_size_h * mask_size_w], device=x.device)
-            patch_mask[:len_keep] = 0   #   0 0 0 0 0 0 0 0 0  1 1 1 1 1  1 1 1...
-            patch_mask = torch.gather(patch_mask, dim=-1, index=ids_shuffle)  #random mask by ids_restore
-
-        else:
-            patch_mask = hard_patch_mask
-        patch_mask = patch_mask.reshape(mask_size_h, mask_size_w).long()    #path_mask
-        pixel_mask = patch_mask.repeat(bw_ratio_h * bw_ratio_w, 1, 1)  #--> pixel mask of img => it's size = image's size
-        pixel_mask = pixel_mask.reshape(bw_ratio_h, bw_ratio_w, mask_size_h, mask_size_w).permute( 2, 0, 3, 1).reshape(1, height, width)
-
-        if block_size > vision_patch_size:
-            print("block size > path size --> repeat interleave")
-            patch_mask = torch.repeat_interleave(patch_mask, block_size//vision_patch_size, dim=2)
-            patch_mask = torch.repeat_interleave(patch_mask, block_size//vision_patch_size, dim=3)
-
-        #rbg tensor --> grayscale tensor
-        r, g, b = x.unbind(dim=-3)
-        l_img = (0.2989 * r + 0.587 * g + 0.114 * b).to(x.dtype)
-        l_img = l_img.unsqueeze(dim=-3)  # rebind channel
-        
-        new_image = x * (1-pixel_mask) + l_img * pixel_mask
-        return new_image, pixel_mask, patch_mask
-
-
-    def masked_attribute_and_labels(self, tokens):
-        """
-        Masking some random tokens for Language Model task with probabilities as in the original BERT paper.
-        :param tokens: list of int, tokenized sentence.
-        :return: (list of int, list of int), masked tokens and related labels for MLM prediction
-        """
-        mask = self.tokenizer.encoder["<|mask|>"]
-        token_range = list(range(1, len(self.tokenizer.encoder)-3)) # 1 ~ 49405
-        mask_tokens = []
-        labels = []
-        att_post_tag = ['NN', "NNS", "NNP", "NNPS",
-                        "JJ", "JJR", "JJS", 
-                         'VB', 'VBN', 'VBG',  
-                         'PRP', 'CD']
-        for i, token in enumerate(tokens):
-            if 0 < token < 49405:
-                word:str = self.tokenizer.decoder[token]
-                tag  = nltk.pos_tag([word.replace("<w/>", "")])[0][1]
-                
-                # mask token with 15% probability
-                if  (tag in att_post_tag) and (not word in ['person', 'Person', 'people', 'he', 'she', 'him']) :
-                    prob = random.random()
-                    if prob < self.maskA_ratio:
-                        prob /= self.maskA_ratio
-
-                        # 80% randomly change token to mask token
-                        if prob < 0.8:
-                            mask_tokens.append(mask)
-
-                        # 10% randomly change token to random token
-                        elif prob < 0.9:
-                            mask_tokens.append(random.choice(token_range))
-
-                        # -> rest 10% randomly keep current token
-                        else: mask_tokens.append(token)
-                        # append current token to output (we will predict these later)
-                        labels.append(token)
-                    else:
-                        labels.append(0)
-                        mask_tokens.append(token)
-                    
-                else:
-                    # no masking token (will be ignored by loss function later)
-                    labels.append(0)
-                    mask_tokens.append(token)
-            else:
-                labels.append(0)
-                mask_tokens.append(token)
-        
-        if all(l == 0 for l in labels):
-            # at least mask 1
-            labels[1] = tokens[1]
-            mask_tokens[1] = mask
-
-        return torch.tensor(mask_tokens), torch.tensor(labels)
